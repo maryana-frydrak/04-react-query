@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Toaster } from "react-hot-toast";
+import { useState, useEffect } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import { SearchBar } from "../SearchBar/SearchBar";
 import { fetchMovies } from "../../services/movieService";
 import { type Movie } from "../../types/movie";
@@ -8,25 +8,30 @@ import { MovieGrid } from "../MovieGrid/MovieGrid";
 import { Loader } from "../Loader/Loader";
 import { ErrorMessage } from "../ErrorMessage/ErrorMessage";
 import { MovieModal } from "../MovieModal/MovieModal";
-import { useQuery } from "@tanstack/react-query";
-import { default as ReactPaginate } from "react-paginate";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import ReactPaginate from "react-paginate";
 
-console.log("ПЕРЕВІРКА КОМПОНЕНТІВ:");
-console.log("SearchBar:", typeof SearchBar);
-console.log("MovieGrid:", typeof MovieGrid);
-console.log("ReactPaginate:", typeof ReactPaginate);
-console.log("MovieModal:", typeof MovieModal);
+const Paginate =
+  (ReactPaginate as unknown as { default: React.ElementType }).default ||
+  ReactPaginate;
 
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ["movies", searchQuery, page],
     queryFn: () => fetchMovies(searchQuery, page),
     enabled: searchQuery !== "",
+    placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (data && data.results.length === 0 && searchQuery !== "") {
+      toast.error("Movies not found!");
+    }
+  }, [data, searchQuery]);
 
   const openModal = (movie: Movie) => {
     setSelectedMovie(movie);
@@ -49,11 +54,13 @@ function App() {
       {isLoading && <Loader />}
       {isError && <ErrorMessage />}
       {data && data.results.length > 0 && (
-        <MovieGrid movies={data?.results || []} onSelect={openModal} />
+        <div style={{ opacity: isFetching ? 0.5 : 1 }}>
+          <MovieGrid movies={data?.results || []} onSelect={openModal} />
+        </div>
       )}
 
       {data && data?.total_pages > 1 && (
-        <ReactPaginate
+        <Paginate
           pageCount={data?.total_pages || 0}
           pageRangeDisplayed={5}
           marginPagesDisplayed={1}
