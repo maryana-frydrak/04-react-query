@@ -3,6 +3,7 @@ import { type Movie } from "../types/movie";
 
 interface TMDBResponse {
   results: Movie[];
+  total_pages: number;
 }
 
 const instance = axios.create({
@@ -12,9 +13,12 @@ const instance = axios.create({
   },
 });
 
-export const fetchMovies = async (query: string): Promise<Movie[]> => {
+export const fetchMovies = async (
+  query: string,
+  page: number = 1,
+): Promise<TMDBResponse> => {
   const response = await instance.get<TMDBResponse>("/search/movie", {
-    params: { query },
+    params: { query, page },
   });
-  return response.data.results;
+  return response.data;
 };
